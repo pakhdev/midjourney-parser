@@ -7,4 +7,5 @@ export const envConfiguration = () => ({
     superProperties: process.env.SUPER_PROPERTIES,
     maxThreads: process.env.MAX_THREADS,
     readUntil: process.env.READ_UNTIL,
+    sendToAihance: process.env.SEND_TO_AIHANCE,
 });

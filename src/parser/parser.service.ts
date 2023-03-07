@@ -1,13 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { parsingKeywords } from './data/parsing-keywords.data';
 import { ConfigService } from '@nestjs/config';
+import { ContentService } from '../content/content.service';
 
 @Injectable()
 export class ParserService {
 
-    constructor(private readonly configService: ConfigService) {
+    constructor(
+        private readonly configService: ConfigService,
+        private readonly contentService: ContentService,
+    ) {
     }
 
+    private logger = new Logger('Parser');
     private isStopped = false;
     private readonly searchKeywords = parsingKeywords;
     private guildId = +this.configService.get('guildId');
@@ -97,7 +102,7 @@ export class ParserService {
         } else {
 
             if (this.openedThreads > 1) {
-                console.log(`Connection killed, waiting for search switching`);
+                this.logger.log(`Connection killed, waiting for search switching`);
                 this.openedThreads--;
             } else {
                 this.nextKeyword();
@@ -136,35 +141,68 @@ export class ParserService {
         }
     }
 
-    private processFetchResult(json, page: number) {
+    private async processFetchResult(json, page: number): Promise<void> {
         this.totalMessages = Number(json.total_results) > this.totalMessages ? Number(json.total_results) : this.totalMessages;
-        // this.parent.saver.save(json.messages);
+
+        for (let message of json.messages) {
+            message = message[0];
+            if (
+                message.author &&
+                message.author.username === 'Midjourney Bot' &&
+                message.attachments &&
+                message.attachments.length === 1 &&
+                message.attachments[0].url &&
+                message.attachments[0].content_type === 'image/png'
+            ) {
+                const guildId = json.guildId;
+                const channelId = message.channel_id;
+                const messageId = message.id;
+
+                const keywords = message.content;
+                const link = `${ guildId }/${ channelId }/${ messageId }`;
+                const imageUrl = message.attachments[0].url;
+                const width = message.attachments[0].width;
+                const height = message.attachments[0].height;
+
+                await this.contentService.create({
+                    remoteId: messageId,
+                    remoteUserId: '0',
+                    image: imageUrl,
+                    permalink: link,
+                    keywords,
+                    width,
+                    height,
+                    isUpscaled: false,
+                });
+            }
+        }
+
         this.openedThreads--;
 
         if (page === 0) {
-            console.log(`Initial page downloaded (${ this.currentKeyword })`);
+            this.logger.log(`Initial page downloaded (${ this.currentKeyword })`);
             this.runThreads();
         } else {
-            console.log(`Page ${ page } (${ this.currentKeyword }) downloaded`);
+            this.logger.log(`Page ${ page } (${ this.currentKeyword }) downloaded`);
             this.nextPage();
         }
     }
 
     private processEmptyResult(page: number, attempt: number) {
-        console.log(`Page ${ this.currentPage } (${ this.currentKeyword }): empty. Restarting query`);
+        this.logger.warn(`Page ${ this.currentPage } (${ this.currentKeyword }): empty. Restarting query`);
         this.openedThreads--;
         this.reloadPage(page, attempt);
     }
 
     private setLongPause(page: number, attempt: number) {
-        console.log(`Page ${ this.currentPage } (${ this.currentKeyword }): loading failed. Restarting query`);
+        this.logger.error(`Page ${ this.currentPage } (${ this.currentKeyword }): loading failed. Restarting query`);
         this.openedThreads--;
         this.setTimestamp(120000);
         this.reloadPage(page, attempt);
     }
 
     private noMoreAttempts() {
-        console.log(`Page ${ this.currentPage } (${ this.currentKeyword }): The maximum of attempts exceeded, loading next page`);
+        this.logger.error(`Page ${ this.currentPage } (${ this.currentKeyword }): The maximum of attempts exceeded, loading next page`);
         this.openedThreads--;
         this.nextPage();
     }

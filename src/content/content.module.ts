@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 
 import { ContentService } from './content.service';
 import { Content } from './entities/content.entity';
@@ -8,7 +9,8 @@ import { Content } from './entities/content.entity';
     imports: [
         TypeOrmModule.forFeature([Content]),
     ],
-    providers: [ContentService],
+    providers: [ContentService, ConfigService],
+    exports: [ContentService],
 })
 export class ContentModule {
 }
