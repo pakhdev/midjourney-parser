@@ -15,8 +15,8 @@ export class ParserService {
     private logger = new Logger('Parser');
     private isStopped = false;
     private readonly searchKeywords = parsingKeywords;
-    private guildId = +this.configService.get('guildId');
-    private channelId = +this.configService.get('channelId');
+    private guildId = this.configService.get('guildId');
+    private channelId = this.configService.get('channelId');
     private pauseBetween = +this.configService.get('pauseBetween');
     private maxAttempts = +this.configService.get('maxAttempts');
     private maxThreads = +this.configService.get('maxThreads');
@@ -33,7 +33,7 @@ export class ParserService {
     // Functions used by controller
     async sendToAihance() {
         this.isStopped = false;
-
+        this.contentService.findNotUploaded();
     }
 
     async parseContent() {
@@ -137,13 +137,14 @@ export class ParserService {
             const json = await response.json();
             json.messages.length ? this.processFetchResult(json, page) : this.processEmptyResult(page, attempt);
         } else {
+            console.log(response.status);
+            console.log(`https://discord.com/api/v9/guilds/${ this.guildId }/messages/search?content=${ this.currentKeyword }&offset=${ offset }`);
             this.setLongPause(page, attempt);
         }
     }
 
     private async processFetchResult(json, page: number): Promise<void> {
         this.totalMessages = Number(json.total_results) > this.totalMessages ? Number(json.total_results) : this.totalMessages;
-
         for (let message of json.messages) {
             message = message[0];
             if (
@@ -154,7 +155,7 @@ export class ParserService {
                 message.attachments[0].url &&
                 message.attachments[0].content_type === 'image/png'
             ) {
-                const guildId = json.guildId;
+                const guildId = this.guildId;
                 const channelId = message.channel_id;
                 const messageId = message.id;
 

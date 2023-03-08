@@ -8,4 +8,6 @@ export const envConfiguration = () => ({
     maxThreads: process.env.MAX_THREADS,
     readUntil: process.env.READ_UNTIL,
     sendToAihance: process.env.SEND_TO_AIHANCE,
+    aihanceUrl: process.env.AIHANCE_URL,
+    aihanceToken: process.env.AIHANCE_TOKEN,
 });

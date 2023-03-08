@@ -2,29 +2,20 @@
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
 </p>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
-
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+This is a Discord parser that extracts only messages from the Midjourney bot based on selected keywords found in `src/parser/data/parsing-keywords.data.ts`.
+
+The following data will be extracted:
+- Image link
+- Keywords
+- Image ID (to avoid repeats)
+- User ID (for searching by user)
+- Detection of whether the image is upscaled
+- Link to the message (to generate an upscaled image if needed)
+
+All data will be saved in the parser DB by default. A Docker container with MySQL is included in the `docker-compose.yaml` file. The idea is that the content will be sent to Aihance as the final result, and this option can be activated in the `.env` file.
 
 ## Installation
 
@@ -32,42 +23,69 @@
 $ npm install
 ```
 
+1) Enter the Midjourney Discord server.
+2) Select one of the channels called "newbies-31" or any other number.
+3) Open the console (F12).
+4) In the Network tab, search and copy the superProperties and authorization from request headers to the .env file.
+5) Run the following script and copy the guild and channel IDs to the .env file:
+```
+function getSelectedRoom() {
+    let uls = document.getElementsByTagName('ul');
+    for (const ul of uls) {
+      if (ul.className.includes('content')) {
+        let lis = ul.getElementsByTagName('li');
+        for (const li of lis) {
+          const sectionClass = li.className;
+          const sectionName = li.getAttribute('data-dnd-name');
+          if(
+            sectionName &&
+            sectionName.includes('newbies-') &&
+            sectionClass.includes('selected')
+          ){
+            const sectionIds = li.getElementsByTagName('a')[0].getAttribute('href').match(/^\/channels\/(\d+)\/(\d+)/);
+            return { name: sectionName, guildId: sectionIds[1], channelId: sectionIds[2] };
+          }
+        }
+      }
+    }
+    return false;
+}
+getSelectedRoom();
+```
+6) Configure the rest of the options in the .env file, if necessary.
+
 ## Running the app
 
 ```bash
-# development
 $ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
 ```
 
-## Test
+## Overview
 
-```bash
-# unit tests
-$ npm run test
+This is a parser service that can parse content and either store it in a local database or send it directly to Aihance. The service has two options:
 
-# e2e tests
-$ npm run test:e2e
+1. Parse content to the parser database without sending it to Aihance. Later, the `toAihance` route can be used to send the parsed content to Aihance.
+2. Parse content and directly send it to Aihance by activating the `SEND_TO_AIHANCE` option.
 
-# test coverage
-$ npm run test:cov
+## Routes
+
+### Parse Content to Local DB
+
+To parse content to the local database, use the following route:
 ```
+localhost:1338/parser/parse
+```
+This route will parse the content and store it in the parser database. If the `SEND_TO_AIHANCE` option is enabled in the `.env` file, the parsed content will also be sent to Aihance and downloaded.
 
-## Support
+### Send Content to Aihance
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+If content has been previously parsed and stored in the parser database with the `SEND_TO_AIHANCE` option deactivated, it can be sent to Aihance using the following route:
 
-## Stay in touch
+```
+localhost:1338/parser/toAihance
+```
+This route will send the parsed content to Aihance for further processing.
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Configuration
 
-## License
-
-Nest is [MIT licensed](LICENSE).
+The service can be configured using the `.env` file. The `SEND_TO_AIHANCE` option can be set to `true` or `false` to enable or disable direct sending of parsed content to Aihance.
