@@ -14,6 +14,8 @@ export class ContentService {
     ) {
     }
 
+    public isStopped = true;
+
     async create(createContentDto: CreateContentDto) {
 
         const idExists = await this.contentRepository.findOneBy({ remoteId: createContentDto.remoteId });
@@ -33,6 +35,7 @@ export class ContentService {
     }
 
     async findNotUploaded() {
+        this.isStopped = false;
         const pictures = await this.contentRepository.find({
             where: {
                 downloaded: false,
@@ -40,6 +43,7 @@ export class ContentService {
             take: 500,
         });
         for (const picture of pictures) {
+            if (this.isStopped) break;
             await this.sendToAihance(picture);
         }
     }

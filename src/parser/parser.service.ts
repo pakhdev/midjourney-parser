@@ -13,7 +13,7 @@ export class ParserService {
     }
 
     private logger = new Logger('Parser');
-    private isStopped = false;
+    private isStopped = true;
     private readonly searchKeywords = parsingKeywords;
     private guildId = this.configService.get('guildId');
     private channelId = this.configService.get('channelId');
@@ -43,6 +43,7 @@ export class ParserService {
 
     async stopAll() {
         this.isStopped = true;
+        this.contentService.isStopped = true;
     }
 
     ///////////////////////////////////////////////////////////////
@@ -71,6 +72,7 @@ export class ParserService {
     }
 
     private queryRunner(page: number, attempt = 0) {
+        if (this.isStopped) return;
         this.openedThreads++;
         if (this.timeDiff() >= this.pauseBetween) { // Instant start
             this.setTimestamp(0);
